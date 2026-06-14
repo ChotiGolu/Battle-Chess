@@ -1,5 +1,4 @@
-# Preview / development artifacts
-preview.html
+# Debug/test screenshots only
 preview-*.png
 debug-*.png
 ss-*.png
