@@ -429,8 +429,21 @@ window.BattleChess = (function () {
 			const pseudo = this.pseudoMoves(r, c);
 			const legal  = [];
 			for (const m of pseudo) {
+				const [tr, tc] = m;
+
+				// Castling: also verify king isn't in check now and doesn't pass through check
+				if (p.t === KING && Math.abs(tc - c) === 2) {
+					if (this.inCheck(p.c)) continue;
+					const midCol = c + (tc > c ? 1 : -1);
+					const s2 = this._snap();
+					this._apply(r, c, r, midCol);
+					const throughCheck = this.inCheck(p.c);
+					this._restore(s2);
+					if (throughCheck) continue;
+				}
+
 				const snap = this._snap();
-				this._apply(r, c, m[0], m[1]);
+				this._apply(r, c, tr, tc);
 				if (!this.inCheck(p.c)) legal.push(m);
 				this._restore(snap);
 			}
@@ -498,12 +511,12 @@ window.BattleChess = (function () {
 					const t = this.get(rr, cc);
 					if (!t || t.c !== col) out.push([rr, cc]);
 				}
-			// Castling
-			if (col === W && r === 7 && c === 4 && !this.inCheck(W)) {
+			// Castling — no inCheck call here (would recurse); legalMoves validates the path
+			if (col === W && r === 7 && c === 4) {
 				if (this.castle.wK && !this.get(7,5) && !this.get(7,6)) out.push([7, 6]);
 				if (this.castle.wQ && !this.get(7,3) && !this.get(7,2) && !this.get(7,1)) out.push([7, 2]);
 			}
-			if (col === B && r === 0 && c === 4 && !this.inCheck(B)) {
+			if (col === B && r === 0 && c === 4) {
 				if (this.castle.bK && !this.get(0,5) && !this.get(0,6)) out.push([0, 6]);
 				if (this.castle.bQ && !this.get(0,3) && !this.get(0,2) && !this.get(0,1)) out.push([0, 2]);
 			}
@@ -1422,14 +1435,20 @@ window.BattleChess = (function () {
 
 })();
 
-// Auto-init any containers already in the DOM when script loads
-document.addEventListener('DOMContentLoaded', function () {
+// Auto-init: works whether the script loads before or after DOMContentLoaded
+function _bcAutoInit() {
 	document.querySelectorAll('.bc-plugin-wrapper').forEach(function (wrapper) {
 		const container = wrapper.querySelector('.bc-game-container');
-		const depth     = parseInt(wrapper.dataset.bcDepth || '2', 10);
-		const side      = wrapper.dataset.bcSide || 'white';
-		if (container && typeof BattleChess !== 'undefined') {
-			BattleChess.init(container, { depth: depth, playerSide: side });
-		}
+		if (!container || container.dataset.bcReady) return; // skip if already init'd
+		container.dataset.bcReady = '1';
+		const depth = parseInt(wrapper.dataset.bcDepth || '2', 10);
+		const side  = wrapper.dataset.bcSide || 'white';
+		BattleChess.init(container, { depth: depth, playerSide: side });
 	});
-});
+}
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', _bcAutoInit);
+} else {
+	_bcAutoInit();
+}
