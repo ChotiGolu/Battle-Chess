@@ -1,0 +1,8 @@
+# Preview / development artifacts
+preview.html
+preview-*.png
+
+# WordPress common ignores
+*.log
+.DS_Store
+Thumbs.db
